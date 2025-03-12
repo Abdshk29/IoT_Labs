@@ -9,15 +9,12 @@ from machine import Pin, I2C
 from neopixel import NeoPixel
 
 # Initialize DHT11 Sensor
-DHT_PIN = 4
-dht_sensor = dht.DHT11(machine.Pin(DHT_PIN))
+dht_sensor = dht.DHT11(Pin(4))
 
 def dht_measure():
     try:
         dht_sensor.measure()
-        temp = dht_sensor.temperature()
-        humidity = dht_sensor.humidity()
-        return temp, humidity
+        return dht_sensor.temperature(), dht_sensor.humidity()
     except Exception as e:
         print("Failed to read DHT11:", e)
         return None, None
@@ -31,200 +28,163 @@ oled = ssd1306.SSD1306_I2C(128, 64, i2c)
 
 def update_oled(message):
     oled.fill(0)
-    oled.text(message, 0, 0)
+    lines = message.split('\\n')
+    for i, line in enumerate(lines):
+        oled.text(line, 0, i * 10)
     oled.show()
 
-# WiFi Station Credentials
-ssid_st = "Shahmir 2.4G"
-password_st = "shahzad1"
-
-print("Connecting to WiFi", end="")
+# WiFi Station Setup
 sta = network.WLAN(network.STA_IF)
 sta.active(True)
 sta.connect("Shahmir 2.4G", "shahzad1")
 
 for _ in range(10):
     if sta.isconnected():
+        print("Connected to WiFi!\nIP Address:", sta.ifconfig()[0])
         break
     time.sleep(1)
-    print(".", end="")
-
-if sta.isconnected():
-    print("\nConnected to WiFi!")
-    print("IP Address:", sta.ifconfig()[0])
 else:
-    print("\nFailed to connect")
     raise Exception("WiFi connection failed")
 
 # Access Point Setup
-ssid_ap = "ESP32_AP"
-password_ap = "12345678"
 ap = network.WLAN(network.AP_IF)
 ap.active(True)
-ap.config(essid=ssid_ap, password=password_ap, authmode=network.AUTH_WPA2_PSK)
-
-print("Access Point Active")
-print("AP IP Address:", ap.ifconfig()[0])
+ap.config(essid="ESP32_1358", password="12345678", authmode=network.AUTH_WPA2_PSK)
+print("Access Point Active\nAP IP Address:", ap.ifconfig()[0])
 
 # Web Server Function
 def web_page():
     html = """
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 Web Server</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        /* General Styling */
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: "Poppins", sans-serif;
-        }
         body {
-            background: linear-gradient(135deg, #1a1a2e, #16213e);
-            color: #ffffff;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+            color: white;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        h1, h2 { text-align: center; margin-bottom: 20px; }
+        .flex-container {
             display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
             justify-content: center;
-            align-items: center;
-            height: 100vh;
-            flex-direction: column;
         }
-        .container {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(10px);
+        .control-box {
+            flex: 1;
+            min-width: 300px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            padding: 20px;
             text-align: center;
-            width: 90%;
-            max-width: 500px;
         }
-        h1, h2 {
-            text-transform: uppercase;
-            margin-bottom: 15px;
-        }
-
-        /* RGB Buttons */
+        .button-group { display: flex; justify-content: center; margin-top: 10px; }
         .button {
-            display: inline-block;
-            padding: 12px 20px;
-            margin: 8px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            text-transform: uppercase;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 5px;
+            color: white;
+            background-color: #333;
+            text-decoration: none;
             transition: all 0.3s ease;
-            color: #fff;
-            box-shadow: 0px 4px 15px rgba(255, 255, 255, 0.2);
+            display: inline-block;
         }
         .button:hover {
-            transform: scale(1.05);
+            transform: scale(1.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
         }
-        .red {
-            background: linear-gradient(45deg, #ff4d4d, #ff0000);
+        .red { background-color: #e74c3c; }
+        .green { background-color: #2ecc71; }
+        .blue { background-color: #3498db; }
+        .submit-btn { background-color: #9b59b6; }
+        .submit-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
         }
-        .green {
-            background: linear-gradient(45deg, #00ff99, #00cc66);
-        }
-        .blue {
-            background: linear-gradient(45deg, #66b3ff, #0044cc);
-        }
-
-        /* Input Fields */
-        input[type="text"], input[type="number"] {
-            width: 80px;
-            padding: 10px;
-            margin: 8px;
-            border: none;
-            border-radius: 6px;
-            background: rgba(255, 255, 255, 0.2);
-            color: #fff;
-            text-align: center;
-            font-size: 16px;
-            outline: none;
-        }
-        input::placeholder {
-            color: rgba(255, 255, 255, 0.7);
+        input[type="number"], input[type="text"] {
+            padding: 8px;
+            margin: 5px;
+            border-radius: 4px;
         }
         input[type="submit"] {
-            background: linear-gradient(45deg, #ffcc00, #ff9900);
-            color: white;
-            padding: 12px 18px;
+            padding: 10px 15px;
             border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: all 0.3s ease;
+            border-radius: 5px;
         }
-        input[type="submit"]:hover {
-            transform: scale(1.05);
-            background: linear-gradient(45deg, #ffaa00, #ff6600);
-        }
-
-        /* Sensor Data */
         #sensorData {
-            margin-top: 20px;
-            font-size: 18px;
-            padding: 15px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            box-shadow: 0px 4px 10px rgba(255, 255, 255, 0.2);
+            text-align: center;
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            max-width: 500px;
+            margin: 20px auto;
         }
-        #sensorData h3 {
-            margin: 10px 0;
-        }
-        #temp, #humidity {
-            font-weight: bold;
+        form { display: flex; flex-direction: column; align-items: center; }
+        .rgb-controls { display: flex; justify-content: center; }
+        .rgb-input { margin: 0 5px; }
+        @media (max-width: 768px) {
+            .flex-container { flex-direction: column; }
+            .control-box { min-width: 100%; }
+            .rgb-controls { flex-direction: column; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>ESP32 Control Panel</h1>
-        
-        <!-- RGB LED Control -->
-        <h2>RGB LED Control</h2>
-        <a href="/red"><button class="button red">RED</button></a>
-        <a href="/green"><button class="button green">GREEN</button></a>
-        <a href="/blue"><button class="button blue">BLUE</button></a>
-        
-        <!-- Custom RGB Color -->
-        <h2>Custom RGB Color</h2>
-        <form action="/custom-rgb" method="POST">
-            <label for="r">R:</label>
-            <input type="number" id="r" name="r" min="0" max="255" value="0">
-            
-            <label for="g">G:</label>
-            <input type="number" id="g" name="g" min="0" max="255" value="0">
-            
-            <label for="b">B:</label>
-            <input type="number" id="b" name="b" min="0" max="255" value="0">
-            
-            <br>
-            <input type="submit" value="Set LED Color" class="button">
-        </form>
-        
-        <!-- OLED Display -->
-        <h2>OLED Display</h2>
-        <form action="/text" method="POST">
-            <input type="text" name="message" maxlength="20" placeholder="Text for OLED">
-            <input type="submit" value="Display" class="button">
-        </form>
-        
-        <!-- Sensor Data -->
-        <h2>Sensor Data</h2>
-        <div id="sensorData">
-            <h3>Temperature: <span id="temp">Reading...</span>°C</h3>
-            <h3>Humidity: <span id="humidity">Reading...</span>%</h3>
+    <h1>ESP32 Control Panel</h1>
+    <div class="flex-container">
+        <div class="control-box">
+            <h2>RGB LED Control</h2>
+            <div class="button-group">
+                <a href="/red" class="button red">RED</a>
+                <a href="/green" class="button green">GREEN</a>
+                <a href="/blue" class="button blue">BLUE</a>
+            </div>
+        </div>
+        <div class="control-box">
+            <h2>Custom RGB Color</h2>
+            <form action="/custom-rgb" method="POST">
+                <div class="rgb-controls">
+                    <div class="rgb-input">
+                        <label>R:</label>
+                        <input type="number" name="r" min="0" max="255" value="0">
+                    </div>
+                    <div class="rgb-input">
+                        <label>G:</label>
+                        <input type="number" name="g" min="0" max="255" value="0">
+                    </div>
+                    <div class="rgb-input">
+                        <label>B:</label>
+                        <input type="number" name="b" min="0" max="255" value="0">
+                    </div>
+                </div>
+                <input type="submit" value="Set LED Color" class="button submit-btn">
+            </form>
+        </div>
+        <div class="control-box">
+            <h2>OLED Display</h2>
+            <form action="/text" method="POST">
+                <input type="text" name="message" maxlength="20" placeholder="Text for OLED">
+                <input type="submit" value="Display" class="button submit-btn">
+            </form>
         </div>
     </div>
-    
-    <!-- JavaScript for Live Updates -->
+    <div id="sensorData">
+        <h2>Sensor Data</h2>
+        <h3>Temperature: <span id="temp">Reading...</span>&#8451;</h3>
+        <h3>Humidity: <span id="humidity">Reading...</span>%</h3>
+    </div>
     <script>
         function updateSensorData() {
             var xhr = new XMLHttpRequest();
@@ -237,137 +197,66 @@ def web_page():
                 }
             };
             xhr.send();
-            setTimeout(updateSensorData, 2000); // Update every 2 seconds
+            setTimeout(updateSensorData, 2000);
         }
-        
-        window.onload = function() {
-            updateSensorData();
-        };
+        window.onload = updateSensorData;
     </script>
 </body>
 </html>"""
     return html
 
-# Create and bind socket only after WiFi is connected
+# Socket Setup
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind(("0.0.0.0", 80))
+s.bind((sta.ifconfig()[0], 80))
 s.listen(5)
 print("Socket bound to port 80")
 
 while True:
     conn, addr = s.accept()
     print("Connection from:", addr)
-    
-    try:
-        request = conn.recv(1024).decode()
-        print("Request:", request)
-        
-        # Handle sensor data endpoint for AJAX requests
-        if "GET /sensor-data" in request:
-            temp, humidity = dht_measure()
-            if temp is None:
-                temp = "N/A"
-            if humidity is None:
-                humidity = "N/A"
-            
-            # Create JSON response
-            sensor_data = {"temp": temp, "humidity": humidity}
-            json_response = json.dumps(sensor_data)
-            
-            # Send JSON response
-            conn.send("HTTP/1.1 200 OK\nContent-Type: application/json\nConnection: close\n\n".encode())
-            conn.send(json_response.encode())
-        
-        # Handle LED color control using direct paths
-        elif "GET /red" in request:
-            neo[0] = (255, 0, 0)  # Set NeoPixel to red
-            neo.write()
-            # Redirect back to the main page
-            conn.send("HTTP/1.1 303 See Other\nLocation: /\n\n".encode())
-        
-        elif "GET /green" in request:
-            neo[0] = (0, 255, 0)  # Set NeoPixel to green
-            neo.write()
-            # Redirect back to the main page
-            conn.send("HTTP/1.1 303 See Other\nLocation: /\n\n".encode())
-        
-        elif "GET /blue" in request:
-            neo[0] = (0, 0, 255)  # Set NeoPixel to blue
-            neo.write()
-            # Redirect back to the main page
-            conn.send("HTTP/1.1 303 See Other\nLocation: /\n\n".encode())
-        
-        # Handle custom RGB color using POST method
-        elif "POST /custom-rgb" in request:
-            # Find the form data in the request
-            form_data_pos = request.find("\r\n\r\n") + 4
-            if form_data_pos < len(request):
-                form_data = request[form_data_pos:]
-                
-                # Extract RGB values with basic parsing
-                r_val = 0
-                g_val = 0
-                b_val = 0
-                
-                if "r=" in form_data:
-                    r_str = form_data.split("r=")[1].split("&")[0]
-                    try:
-                        r_val = int(r_str)
-                        r_val = max(0, min(255, r_val))  # Clamp to 0-255
-                    except:
-                        pass
-                        
-                if "g=" in form_data:
-                    g_str = form_data.split("g=")[1].split("&")[0]
-                    try:
-                        g_val = int(g_str)
-                        g_val = max(0, min(255, g_val))  # Clamp to 0-255
-                    except:
-                        pass
-                        
-                if "b=" in form_data:
-                    b_str = form_data.split("b=")[1].split("&")[0]
-                    try:
-                        b_val = int(b_str)
-                        b_val = max(0, min(255, b_val))  # Clamp to 0-255
-                    except:
-                        pass
-                
-                # Set the NeoPixel color
-                neo[0] = (r_val, g_val, b_val)
-                neo.write()
-                print(f"LED set to RGB: {r_val}, {g_val}, {b_val}")
-            
-            # Redirect back to the main page
-            conn.send("HTTP/1.1 303 See Other\nLocation: /\n\n".encode())
-        
-        # Handle OLED text using POST method
-        elif "POST /text" in request:
-            # Find the form data in the request
-            form_data_pos = request.find("\r\n\r\n") + 4
-            if form_data_pos < len(request):
-                form_data = request[form_data_pos:]
-                
-                # Extract the message
-                if "message=" in form_data:
-                    message = form_data.split("message=")[1].split("&")[0]
-                    # Simple URL decoding (replace + with space)
-                    message = message.replace("+", " ")
-                    
-                    print("Message to OLED:", message)
-                    update_oled(message)
-            
-            # Redirect back to the main page
-            conn.send("HTTP/1.1 303 See Other\nLocation: /\n\n".encode())
-        
-        # Default: serve the main page
-        else:
-            response = web_page()
-            conn.send("HTTP/1.1 200 OK\nContent-Type: text/html\nConnection: close\n\n".encode())
-            conn.send(response.encode())
-    
-    except Exception as e:
-        print("Error handling request:", e)
-    
-    finally:
-        conn.close()
+    request = conn.recv(1024).decode()
+
+    if "GET /sensor-data" in request:
+        temp, humidity = dht_measure()
+        sensor_data = {"temp": temp if temp is not None else "N/A", "humidity": humidity if humidity is not None else "N/A"}
+        conn.send("HTTP/1.1 200 OK\nContent-Type: application/json\nConnection: close\n\n".encode())
+        conn.send(json.dumps(sensor_data).encode())
+
+    elif "GET /red" in request:
+        neo[0] = (255, 0, 0)
+        neo.write()
+        conn.send("HTTP/1.1 303 See Other\nLocation: /\n\n".encode())
+
+    elif "GET /green" in request:
+        neo[0] = (0, 255, 0)
+        neo.write()
+        conn.send("HTTP/1.1 303 See Other\nLocation: /\n\n".encode())
+
+    elif "GET /blue" in request:
+        neo[0] = (0, 0, 255)
+        neo.write()
+        conn.send("HTTP/1.1 303 See Other\nLocation: /\n\n".encode())
+
+    elif "POST /custom-rgb" in request:
+        form_data = request.split("\r\n\r\n")[1]
+        r_val = g_val = b_val = 0
+        for param in form_data.split("&"):
+            key, val = param.split("=")
+            if key == "r": r_val = max(0, min(255, int(val)))
+            elif key == "g": g_val = max(0, min(255, int(val)))
+            elif key == "b": b_val = max(0, min(255, int(val)))
+        neo[0] = (r_val, g_val, b_val)
+        neo.write()
+        conn.send("HTTP/1.1 303 See Other\nLocation: /\n\n".encode())
+
+    elif "POST /text" in request:
+        form_data = request.split("\r\n\r\n")[1]
+        message = form_data.split("message=")[1].split("&")[0].replace("+", " ").replace("%0A", "\\n")
+        update_oled(message)
+        conn.send("HTTP/1.1 303 See Other\nLocation: /\n\n".encode())
+
+    else:
+        conn.send("HTTP/1.1 200 OK\nContent-Type: text/html\nConnection: close\n\n".encode())
+        conn.send(web_page().encode())
+
+    conn.close()
