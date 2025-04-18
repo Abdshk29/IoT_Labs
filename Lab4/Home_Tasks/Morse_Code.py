@@ -6,12 +6,12 @@ import time
 import neopixel
 
 # WiFi Configuration
-SSID = "HackerMan"
-PASSWORD = "HackerMan1100"
+SSID = "NTU FSD"
+PASSWORD = ""
 
 sta = network.WLAN(network.STA_IF)
 sta.active(True)
-sta.connect(SSID, PASSWORD)
+sta.connect("NTU FSD", "")
 
 while not sta.isconnected():
     time.sleep(1)
