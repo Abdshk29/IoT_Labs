@@ -8,8 +8,8 @@ const char* ssid = "NTU FSD";
 const char* password = "";
 
 // Firebase Config
-const String FIREBASE_HOST = "lab11-78b06-default-rtdb.firebaseio.com";
-const String FIREBASE_AUTH = "zo0lU03okFYI8792OoB9RLH3lI77BaNJ1Z4fmZEH";
+const String FIREBASE_HOST = "lab-evaluation-fb6bc-default-rtdb.firebaseio.com";
+const String FIREBASE_AUTH = "s5a3IcuHwPgLVELCday51iGaWYrEnnJ50tLFjCgK";
 // Firebase path
 const String FIREBASE_PATH = "/sensor_data.json";
 
